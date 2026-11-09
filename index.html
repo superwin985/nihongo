@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2c5f4a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="日语学习">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="styles.css">
+<title>日语学习系统</title>
+</head>
+<body>
+<header class="appbar">
+  <h1 id="title">日语学习系统</h1>
+  <div class="sub" id="subtitle">例句 · 记忆 · 抢答 · 复习</div>
+</header>
+<main id="main"></main>
+<nav class="nav" id="nav">
+  <button data-tab="ex" class="on"><span class="ico">📚</span>例句</button>
+  <button data-tab="gold"><span class="ico">🥇</span>记忆</button>
+  <button data-tab="drill"><span class="ico">⚡</span>抢答</button>
+  <button data-tab="review"><span class="ico">🔁</span>复习</button>
+  <button data-tab="more"><span class="ico">⋯</span>更多</button>
+</nav>
+<script src="app.js"></script>
+</body>
+</html>
