@@ -1,3 +1,4 @@
+window.stopAuto=()=>{};
 /* 日语学习系统 — mobile PWA. Clip audio = Immersion Kit originals only (no TTS for clips). */
 const $=(s,el=document)=>el.querySelector(s);
 const $$=(s,el=document)=>[...el.querySelectorAll(s)];
@@ -26,7 +27,7 @@ async function loadUser(){
 }
 async function saveUser(){await kvSet('user',state.user)}
 
-function setTab(tab){
+function setTab(tab){window.stopAuto();
   state.tab=tab;
   $$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
   render();
@@ -138,7 +139,18 @@ function renderExDetail(x){
       ${c.aud?`<audio controls preload="none" src="${esc(c.aud)}"></audio>`:'<div class="muted">无音频</div>'}
     </div>`).join(''):`<div class="card muted">暂无影视片段（Immersion Kit 动画/日剧中未找到贴合义项的句子）。</div>`}
   `;
-  $('#back').onclick=renderEx;
+  $('#back').onclick=()=>{stopAuto();renderEx()};
+  // 原声自动连播：进入详情自动播第一段，播完接下一段；点卡片从该段开始播
+  const auds=[...main.querySelectorAll('.player audio')];
+  const AP=localStorage.getItem('autoplay')!=='0';
+  const tg=document.createElement('button');tg.className='btn';tg.id='apTog';tg.textContent=AP?'🔁 自动连播：开':'🔁 自动连播：关';
+  main.querySelector('.card .row').appendChild(tg);
+  tg.onclick=()=>{const on=localStorage.getItem('autoplay')==='0';localStorage.setItem('autoplay',on?'1':'0');tg.textContent=on?'🔁 自动连播：开':'🔁 自动连播：关';if(!on)stopAuto();else playAt(0)};
+  function playAt(i){const a=auds[i];if(!a)return;auds.forEach(o=>{if(o!==a){o.pause()}});a.currentTime=0;const pr=a.play();if(pr)pr.catch(()=>{});a.closest('.player').scrollIntoView({behavior:'smooth',block:'center'})}
+  auds.forEach((a,i)=>{a.onplay=()=>auds.forEach(o=>{if(o!==a)o.pause()});a.onended=()=>{if(localStorage.getItem('autoplay')!=='0'&&document.contains(a))playAt(i+1)}});
+  main.querySelectorAll('.player').forEach(c=>c.addEventListener('click',e=>{if(e.target.tagName==='AUDIO')return;const a=c.querySelector('audio');if(a)playAt(auds.indexOf(a))}));
+  window.stopAuto=()=>auds.forEach(a=>a.pause());
+  if(AP&&auds.length)playAt(0);
   $('#star').onclick=async()=>{
     const k=x.key; state.user.stars[k]=!state.user.stars[k]; x.star=!!state.user.stars[k]; await saveUser(); renderExDetail(x);
   };
