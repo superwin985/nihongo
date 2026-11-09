@@ -109,7 +109,7 @@ function renderEx(){
       </button>`).join('')||'<div class="empty">没有符合条件的内容</div>'}
     ${items.length>80?`<div class="muted" style="padding:12px">仅显示前 80 条，请用搜索缩小范围</div>`:''}
   </div>`;
-  state.view._exItems=items.slice(0,80);
+  state.view._exItems=items.slice(0,80); state.view._exAll=items;
   $$('[data-deck]').forEach(b=>b.onclick=()=>{state.view.ex={...deckFilter(),deck:b.dataset.deck,word:''};renderEx()});
   $('#exq').onchange=$('#exq').onkeydown=(e)=>{if(e.type==='change'||e.key==='Enter'){state.view.ex={...deckFilter(),q:$('#exq').value.trim()};renderEx()}};
   $('#exw').onchange=()=>{state.view.ex={...deckFilter(),word:$('#exw').value};renderEx()};
@@ -119,10 +119,20 @@ function renderEx(){
   subtitle.textContent=`影视原声 · Immersion Kit · ${state.ex.meta.with_clips}/${state.ex.meta.usages_total} 用法有片段`;
 }
 
-function renderExDetail(x){
+const PL=new Audio(); PL.preload='auto'; let AT=null, RUN=null;
+const AS=()=>Object.assign({auto:true,pause:3,rep:1,next:true},JSON.parse(localStorage.getItem('apS')||'{}'));
+const ASset=o=>localStorage.setItem('apS',JSON.stringify({...AS(),...o}));
+window.stopAuto=()=>{PL.pause();PL.onended=null;clearTimeout(AT);clearInterval(AT);AT=null;RUN=null;const b=document.getElementById('apPlay');if(b)b.textContent='▶ 连播'};
+function renderExDetail(x,autoStart){
+  window.stopAuto();
   const clips=x.clips||[];
+  const all=state.view._exAll||state.view._exItems||[x]; const idx=all.indexOf(x);
+  const S=AS(); const opt=(v,arr,u)=>arr.map(n=>`<option value="${n}" ${+v===n?'selected':''}>${n}${u}</option>`).join('');
   main.innerHTML=`
-  <button class="btn" id="back">← 返回</button>
+  <div class="row"><button class="btn" id="back">← 返回</button>
+    <button class="btn" id="prevU" ${idx<=0?'disabled':''}>⏮ 上一个</button>
+    <button class="btn" id="nextU" ${idx<0||idx>=all.length-1?'disabled':''}>下一个 ⏭</button>
+    <span class="muted">${idx+1}/${all.length}</span></div>
   <div class="card">
     <div class="row"><span class="badge">${esc(x.word)}</span><button class="btn" id="star">${x.star?'★ 已标':'+ ★'}</button>
     <button class="btn" id="toGold">加入记忆本</button></div>
@@ -130,29 +140,65 @@ function renderExDetail(x){
     <div class="zh">${esc(x.usage_zh||'')}</div>
     ${x.ja?`<div class="jp" style="margin-top:10px">${esc(x.ja)}</div>`:''}
   </div>
+  <div class="card">
+    <div class="row"><button class="btn pri" id="apPlay">▶ 连播</button><span id="apStat" class="muted"></span></div>
+    <div class="row" style="margin-top:8px">
+      <label class="row" style="margin:0">跟读停顿 <select id="sPause">${opt(S.pause,[0,1,2,3,4,5,6,8,10,15],'秒')}</select></label>
+      <label class="row" style="margin:0">每词循环 <select id="sRep">${opt(S.rep,[1,2,3,4,5,6,8,10,20],'遍')}</select></label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label class="row" style="margin:0"><input type="checkbox" id="sNext" ${S.next?'checked':''}> 自动翻到下一个</label>
+      <label class="row" style="margin:0"><input type="checkbox" id="sAuto" ${S.auto?'checked':''}> 打开即播放</label>
+    </div>
+  </div>
   ${clips.length?clips.map((c,i)=>`
     <div class="card player" data-ci="${i}">
       ${c.img?`<img class="thumb" loading="lazy" src="${esc(c.img)}" alt="">`:''}
       <div class="jp">▶ ${esc(c.ja)}</div>
       <div class="zh">${esc(c.zh)}</div>
-      <div class="muted">🎬 ${esc(c.work)} · 原声音频</div>
-      ${c.aud?`<audio controls preload="none" src="${esc(c.aud)}"></audio>`:'<div class="muted">无音频</div>'}
+      <div class="muted">🎬 ${esc(c.work)} · 原声音频${c.aud?' · 点卡片播放':' · 无音频'}</div>
     </div>`).join(''):`<div class="card muted">暂无影视片段（Immersion Kit 动画/日剧中未找到贴合义项的句子）。</div>`}
   `;
-  $('#back').onclick=()=>{stopAuto();renderEx()};
-  // 原声自动连播：进入详情自动播第一段，播完接下一段；点卡片从该段开始播
-  const auds=[...main.querySelectorAll('.player audio')];
-  const AP=localStorage.getItem('autoplay')!=='0';
-  const tg=document.createElement('button');tg.className='btn';tg.id='apTog';tg.textContent=AP?'🔁 自动连播：开':'🔁 自动连播：关';
-  main.querySelector('.card .row').appendChild(tg);
-  tg.onclick=()=>{const on=localStorage.getItem('autoplay')==='0';localStorage.setItem('autoplay',on?'1':'0');tg.textContent=on?'🔁 自动连播：开':'🔁 自动连播：关';if(!on)stopAuto();else playAt(0)};
-  function playAt(i){const a=auds[i];if(!a)return;auds.forEach(o=>{if(o!==a){o.pause()}});a.currentTime=0;const pr=a.play();if(pr)pr.catch(()=>{});a.closest('.player').scrollIntoView({behavior:'smooth',block:'center'})}
-  auds.forEach((a,i)=>{a.onplay=()=>auds.forEach(o=>{if(o!==a)o.pause()});a.onended=()=>{if(localStorage.getItem('autoplay')!=='0'&&document.contains(a))playAt(i+1)}});
-  main.querySelectorAll('.player').forEach(c=>c.addEventListener('click',e=>{if(e.target.tagName==='AUDIO')return;const a=c.querySelector('audio');if(a)playAt(auds.indexOf(a))}));
-  window.stopAuto=()=>auds.forEach(a=>a.pause());
-  if(AP&&auds.length)playAt(0);
+  const cards=$$('.player',main); const playable=clips.map((c,i)=>c.aud?i:-1).filter(i=>i>=0);
+  const stat=t=>{const e=$('#apStat');if(e)e.textContent=t};
+  const hi=ci=>cards.forEach((c,i)=>c.style.outline=i===ci?'3px solid var(--brand)':'');
+  const go=(j,auto)=>{if(j<0||j>=all.length){window.stopAuto();stat('已到列表末尾');return}renderExDetail(all[j],auto);window.scrollTo(0,0)};
+  function wait(sec,label,fn){let n=sec;if(n<=0){fn();return}stat(`${label} ${n}…`);AT=setInterval(()=>{n--;if(n<=0){clearInterval(AT);AT=null;fn()}else stat(`${label} ${n}…`)},1000)}
+  function playClip(k){ // k = position in playable
+    if(!RUN)return; const ci=playable[k]; RUN.k=k; hi(ci);
+    cards[ci].scrollIntoView({behavior:'smooth',block:'center'});
+    const S=AS(); stat(`第 ${k+1}/${playable.length} 段 · 第 ${RUN.rep}/${S.rep} 遍`);
+    PL.src=clips[ci].aud; PL.currentTime=0; const pr=PL.play(); if(pr)pr.catch(()=>{stat('点 ▶ 连播 开始（手机需先点一下）');RUN=null;$('#apPlay').textContent='▶ 连播'});
+    PL.onended=()=>{if(!RUN)return; wait(AS().pause,'跟读',step)};
+  }
+  function step(){
+    if(!RUN)return; const S=AS(); let k=RUN.k+1;
+    if(k<playable.length)return playClip(k);
+    if(RUN.rep<S.rep){RUN.rep++;return playClip(0)}
+    if(S.next&&idx<all.length-1){go(idx+1,true);return}
+    window.stopAuto(); hi(-1); stat('播放完毕');
+  }
+  function start(k=0){
+    $('#apPlay').textContent='⏸ 暂停';
+    if(!playable.length){ // 无原声：停留后翻页
+      RUN={k:0,rep:1}; const S=AS();
+      if(S.next&&idx<all.length-1)wait(Math.max(2,S.pause),'无原声，翻页',()=>go(idx+1,true)); else {window.stopAuto();stat('这个用法没有原声片段')}
+      return;
+    }
+    RUN={k,rep:1}; playClip(k);
+  }
+  $('#apPlay').onclick=()=>{if(RUN){window.stopAuto();stat('已暂停')}else start(0)};
+  cards.forEach((c,i)=>c.onclick=()=>{const k=playable.indexOf(i);if(k<0)return;window.stopAuto();start(k)});
+  $('#sPause').onchange=e=>ASset({pause:+e.target.value});
+  $('#sRep').onchange=e=>ASset({rep:+e.target.value});
+  $('#sNext').onchange=e=>ASset({next:e.target.checked});
+  $('#sAuto').onchange=e=>ASset({auto:e.target.checked});
+  $('#back').onclick=()=>{window.stopAuto();renderEx()};
+  $('#prevU').onclick=()=>go(idx-1,!!RUN||AS().auto);
+  $('#nextU').onclick=()=>go(idx+1,!!RUN||AS().auto);
+  if(autoStart||(autoStart===undefined&&S.auto))start(0);
   $('#star').onclick=async()=>{
-    const k=x.key; state.user.stars[k]=!state.user.stars[k]; x.star=!!state.user.stars[k]; await saveUser(); renderExDetail(x);
+    const k=x.key; state.user.stars[k]=!state.user.stars[k]; x.star=!!state.user.stars[k]; await saveUser(); renderExDetail(x,false);
   };
   $('#toGold').onclick=async()=>{
     const t=today(); const g=state.user.gold;
