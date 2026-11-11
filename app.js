@@ -140,6 +140,13 @@ function renderExDetail(x,autoStart){
     <div class="zh">${esc(x.usage_zh||'')}</div>
     ${x.ja?`<div class="jp" style="margin-top:10px">${esc(x.ja)}</div>`:''}
   </div>
+  ${clips.length?clips.map((c,i)=>`
+    <div class="card player" data-ci="${i}">
+      ${c.img?`<img class="thumb" loading="lazy" src="${esc(c.img)}" alt="">`:''}
+      <div class="jp">▶ ${esc(c.ja)}</div>
+      <div class="zh">${esc(c.zh)}</div>
+      <div class="muted">🎬 ${esc(c.work)} · 原声音频${c.aud?' · 点卡片播放':' · 无音频'}</div>
+    </div>`).join(''):`<div class="card muted">暂无影视片段（Immersion Kit 动画/日剧中未找到贴合义项的句子）。</div>`}
   <div class="card">
     <div class="row"><button class="btn pri" id="apPlay">▶ 连播</button><span id="apStat" class="muted"></span></div>
     <div class="row" style="margin-top:8px">
@@ -151,13 +158,6 @@ function renderExDetail(x,autoStart){
       <label class="row" style="margin:0"><input type="checkbox" id="sAuto" ${S.auto?'checked':''}> 打开即播放</label>
     </div>
   </div>
-  ${clips.length?clips.map((c,i)=>`
-    <div class="card player" data-ci="${i}">
-      ${c.img?`<img class="thumb" loading="lazy" src="${esc(c.img)}" alt="">`:''}
-      <div class="jp">▶ ${esc(c.ja)}</div>
-      <div class="zh">${esc(c.zh)}</div>
-      <div class="muted">🎬 ${esc(c.work)} · 原声音频${c.aud?' · 点卡片播放':' · 无音频'}</div>
-    </div>`).join(''):`<div class="card muted">暂无影视片段（Immersion Kit 动画/日剧中未找到贴合义项的句子）。</div>`}
   `;
   const cards=$$('.player',main); const playable=clips.map((c,i)=>c.aud?i:-1).filter(i=>i>=0);
   const stat=t=>{const e=$('#apStat');if(e)e.textContent=t};
@@ -168,7 +168,7 @@ function renderExDetail(x,autoStart){
     if(!RUN)return; const ci=playable[k]; RUN.k=k; hi(ci);
     cards[ci].scrollIntoView({behavior:'smooth',block:'center'});
     const S=AS(); stat(`第 ${k+1}/${playable.length} 段 · 第 ${RUN.rep}/${S.rep} 遍`);
-    PL.src=clips[ci].aud; PL.currentTime=0; const pr=PL.play(); if(pr)pr.catch(()=>{stat('点 ▶ 连播 开始（手机需先点一下）');RUN=null;$('#apPlay').textContent='▶ 连播'});
+    PL.src=clips[ci].aud; PL.currentTime=0; const pr=PL.play(); if(pr)pr.catch(e=>{if(e&&e.name!=='NotAllowedError')return;stat('点 ▶ 连播 开始（手机需先点一下）');RUN=null;$('#apPlay').textContent='▶ 连播'});
     PL.onended=()=>{if(!RUN)return; wait(AS().pause,'跟读',step)};
   }
   function step(){
